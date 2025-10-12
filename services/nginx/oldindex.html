@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛰️ MorePi Container Dashboard</title>
+
+  <style>
+    /* ===== Background Gradient Animation ===== */
+    .background--custom {
+      background: linear-gradient(90deg, #A512D3, #202A50, #A56E97);
+      background-size: 300% 300%;
+      animation: gradient 8s alternate infinite;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      z-index: -1;
+    }
+
+    @keyframes gradient {
+      0% { background-position: 0%; }
+      100% { background-position: 100%; }
+    }
+
+    /* ===== Dashboard Layout ===== */
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 2rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      backdrop-filter: blur(3px);
+    }
+
+    h1 {
+      color: #ffffff;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 20px rgba(255,255,255,0.3);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 1.1rem;
+      color: #fff;
+      transition: all 0.25s ease;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(8px);
+    }
+
+    .button:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    footer {
+      margin-top: auto;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      opacity: 0.9;
+      padding-top: 2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 🔮 Flowing background -->
+  <div class="background--custom"></div>
+
+  <h1>🛰️ MorePi Container Dashboard</h1>
+  <div class="grid" id="links"></div>
+
+  <script>
+    const services = [
+      { name: "Home Assistant", port: 8123 },
+      { name: "SABnzbd", port: 8080 },
+      { name: "Sonarr", port: 8989 },
+      { name: "Radarr", port: 7878 },
+      { name: "Readarr", port: 8787 },
+      { name: "Whisparr", port: 6969 },
+      { name: "Prowlarr", port: 9696 },
+      { name: "Grocy", port: 9283 },
+      { name: "BarcodeBuddy", port: 9284 },
+      { name: "Portainer", port: 9000 }
+    ];
+
+    const grid = document.getElementById("links");
+    const host = window.location.hostname;
+
+    services.forEach((svc) => {
+      const link = document.createElement("a");
+      link.href = `http://${host}:${svc.port}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.innerHTML = `<div class="button">${svc.name}</div>`;
+      grid.appendChild(link);
+    });
+  </script>
+
+  <footer>
+    Hosted by NGINX on MorePi · <span id="year"></span>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent
+

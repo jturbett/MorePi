@@ -1,0 +1,43 @@
+# Ignore Grocy certs
+services/grocy/keys/*.key
+services/grocy/keys/*.crt
+
+# === General ===
+__pycache__/
+*.pyc
+*.tmp
+*.bak
+*.swp
+*.pid
+*.sock
+
+# === Logs ===
+**/log/
+**/logs/
+*.log
+*.status
+
+# === Certificates & Secrets ===
+**/keys/
+*.key
+*.crt
+*.pem
+*.p12
+*.json.key
+
+# === Home Assistant sensitive data ===
+services/homeassistant/.storage/
+services/homeassistant/home-assistant_v2.db*
+services/homeassistant/tts/
+services/homeassistant/.cloud/
+
+# === Docker generated files ===
+.env
+*.db
+*.sqlite
+docker-compose.override.yml
+
+# === OS junk ===
+.DS_Store
+Thumbs.db
+

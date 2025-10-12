@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛰️ MorePi Container Dashboard</title>
+
+  <style>
+    /* --- Animated background --- */
+    .background--custom {
+      background: linear-gradient(90deg, #A512D3, #202A50, #A56E97);
+      background-size: 300% 300%;
+      animation: gradient 8s alternate infinite;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      z-index: -1;
+    }
+    @keyframes gradient {
+      0% { background-position: 0%; }
+      100% { background-position: 100%; }
+    }
+
+    /* --- Base layout --- */
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #fff;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 3rem;
+      backdrop-filter: blur(3px);
+    }
+
+    h1 { color: #fff; margin: 1rem 0 1rem 0; }
+
+    /* --- Grid of service buttons --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
+      padding: 1rem;
+    }
+
+    .button {
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 1.1rem;
+      text-align: center;
+      color: #fff;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .running { background: rgba(0, 255, 0, 0.25); box-shadow: 0 0 10px #00ff00; }
+    .stopped { background: rgba(255, 0, 0, 0.25); box-shadow: 0 0 10px #ff0000; }
+
+    /* --- Top status bar --- */
+    #statusbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      z-index: 100;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="background--custom"></div>
+
+  <!-- Status Bar -->
+  <div id="statusbar">
+    <span id="time">--:--:--</span>
+    <span id="temp">🌡️ -- °C</span>
+    <span id="load">⚙️ Load: --</span>
+  </div>
+
+  <h1>🛰️ MorePi Container Dashboard</h1>
+  <div class="grid" id="links"></div>
+
+  <!-- Turbatto.com status section -->
+  <div style="display:flex; justify-content:center;">
+    <div id="turbattoStatus" style="margin-top:1rem; font-size:1.2rem;">
+      🌐 Turbatto.com: <span id="turbattoIcon">⏳ Checking...</span>
+    </div>
+  </div>
+
+  <footer>
+    Hosted on MorePi · <span id="year"></span>
+  </footer>
+
+  <script>
+    const services = [
+      { name: "Home Assistant", port: 8123, id: "homeassistant" },
+      { name: "SABnzbd", port: 8080, id: "sabnzbd" },
+      { name: "Sonarr", port: 8989, id: "sonarr" },
+      { name: "Radarr", port: 7878, id: "radarr" },
+      { name: "Readarr", port: 8787, id: "readarr" },
+      { name: "Whisparr", port: 6969, id: "whisparr" },
+      { name: "Prowlarr", port: 9696, id: "prowlarr" },
+      { name: "Grocy", port: 9283, id: "grocy" },
+      { name: "BarcodeBuddy", port: 9080, id: "barcodebuddy" },
+      { name: "Portainer", port: 9000, id: "portainer" },
+      { name: "Watchtower", port: 9001, id: "watchtower" }
+    ];
+
+    const grid = document.getElementById("links");
+    const host = window.location.hostname;
+
+    // Create buttons
+    services.forEach(svc => {
+      const link = document.createElement("a");
+      link.href = `http://${host}:${svc.port}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+
+      const div = document.createElement("div");
+      div.id = svc.id;
+      div.className = "button stopped";
+      div.textContent = svc.name;
+      link.appendChild(div);
+      grid.appendChild(link);
+    });
+
+    // Fetch container states
+    async function updateStatuses() {
+      try {
+        const res = await fetch("http://192.168.1.55:9999/containers/json");
+        const containers = await res.json();
+        const runningNames = containers.map(c => c.Names.map(n => n.replace(/^\/+/, ""))).flat();
+
+        services.forEach(svc => {
+          const el = document.getElementById(svc.id);
+          if (!el) return;
+          const isRunning = runningNames.some(n => n.toLowerCase().includes(svc.id.toLowerCase()));
+          el.classList.toggle("running", isRunning);
+          el.classList.toggle("stopped", !isRunning);
+        });
+      } catch (err) {
+        console.error("Docker proxy unreachable or CORS issue:", err);
+      }
+    }
+
+    // Update system status bar
+    async function updateSystemStatus() {
+      try {
+        const temp = await (await fetch("/shared/sysinfo/temp")).text();
+        const load = await (await fetch("/shared/sysinfo/load")).text();
+        document.getElementById("temp").textContent = `🌡️ ${temp.trim()} °C`;
+        document.getElementById("load").textContent = `⚙️ Load: ${load.trim()}`;
+      } catch (e) {
+        document.getElementById("temp").textContent = "🌡️ -- °C";
+        document.getElementById("load").textContent = "⚙️ Load: --";
+      }
+    }
+
+    // Update time
+    function updateTime() {
+      document.getElementById("time").textContent = new Date().toLocaleTimeString();
+    }
+
+    // --- Check if Turbatto.com is online ---
+    async function checkTurbattoStatus() {
+      const icon = document.getElementById("turbattoIcon");
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        await fetch("https://turbatto.com", { method: "HEAD", mode: "no-cors", signal: controller.signal });
+        clearTimeout(timeout);
+        icon.textContent = "✅ Online";
+        icon.style.color = "#00ff00";
+      } catch (err) {
+        icon.textContent = "❌ Offline";
+        icon.style.color = "#ff0000";
+      }
+    }
+
+    // Intervals
+    updateStatuses();
+    setInterval(updateStatuses, 4000);
+    updateTime();
+    setInterval(updateTime, 1000);
+    updateSystemStatus();
+    setInterval(updateSystemStatus, 6000);
+    checkTurbattoStatus();
+    setInterval(checkTurbattoStatus, 15000);
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
+

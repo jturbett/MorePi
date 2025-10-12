@@ -1,0 +1,193 @@
+services:
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${SABNZBD_PORT}:8080"
+    volumes:
+      - ./services/sabnzbd:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${SONARR_PORT}:8989"
+    volumes:
+      - ./services/sonarr:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${PROWLARR_PORT}:9696"
+    volumes:
+      - ./services/prowlarr:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  whisparr:
+    image: ghcr.io/hotio/whisparr:latest
+    container_name: whisparr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${WHISPARR_PORT}:6969"
+    volumes:
+      - ./services/whisparr:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  grocy:
+    image: linuxserver/grocy:latest
+    container_name: grocy
+    ports:
+      - "${GROCY_HTTP_PORT}:80"
+      - "${GROCY_HTTPS_PORT}:443"
+    volumes:
+      - ./services/grocy:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  barcodebuddy:
+    image: f0rc3/barcodebuddy:latest
+    container_name: barcodebuddy
+    ports:
+      - "${BARCODEBUDDY_HTTP_PORT}:80"
+      - "${BARCODEBUDDY_HTTPS_PORT}:443"
+    volumes:
+      - ./services/barcodebuddy:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    environment:
+      - TZ=${TZ}
+    privileged: true
+    ports:
+      - "${HOMEASSISTANT_PORT}:8123"
+    volumes:
+      - ./services/homeassistant:/config
+      - /if:/shared
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - /home/joe/compose-stack/services/nginx/conf.d:/etc/nginx/conf.d
+      - /home/joe/compose-stack/services/nginx:/usr/share/nginx/html
+      - /if:/usr/share/nginx/html/shared
+
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 3 * * *" --cleanup
+   
+  readarr:
+    image: ghcr.io/hotio/readarr:nightly 
+    container_name: readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${READARR_PORT}:8787"
+    volumes:
+      - ./services/readarr:/config
+      - /if:/shared
+    restart: unless-stopped
+ 
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: dockerproxy
+    environment:
+      CONTAINERS: "1"
+      NETWORKS: "1"
+      SERVICES: "1"
+      TASKS: "1"
+      VERSION: "1"
+      INFO: "1"
+      AUTH: "0"
+      CORS_ALLOW_ORIGIN: "*"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "2375:2375"
+    restart: unless-stopped
+
+  dockerapi:
+    image: nginx:alpine
+    container_name: dockerapi
+    depends_on:
+      - dockerproxy
+    ports:
+      - "9999:80"
+    volumes:
+      - ./services/dockerapi/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+
+  mcp-agent:
+    build: ./services/mcp-agent
+    container_name: mcp-agent
+    restart: unless-stopped
+    ports:
+      - "8181:8081"
+    networks:
+      - default
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    ports:
+      - "${RADARR_PORT}:7878"
+    volumes:
+      - ./services/radarr:/config
+      - /if:/shared
+    restart: unless-stopped
+
+volumes:
+  portainer_data:
+
+

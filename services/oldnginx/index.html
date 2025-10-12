@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛰️ MorePi Container Dashboard</title>
+
+  <style>
+    /* --- Animated background --- */
+    .background--custom {
+      background: linear-gradient(90deg, #A512D3, #202A50, #A56E97);
+      background-size: 300% 300%;
+      animation: gradient 8s alternate infinite;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      z-index: -1;
+    }
+    @keyframes gradient {
+      0% { background-position: 0%; }
+      100% { background-position: 100%; }
+    }
+
+    /* --- Base layout --- */
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #fff;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 3rem;
+      backdrop-filter: blur(3px);
+    }
+
+    h1 { color: #fff; margin: 1rem 0 1rem 0; }
+
+    /* --- Grid of service buttons --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
+      padding: 1rem;
+    }
+
+    .button {
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 1.1rem;
+      text-align: center;
+      color: #fff;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .running { background: rgba(0, 255, 0, 0.25); box-shadow: 0 0 10px #00ff00; }
+    .stopped { background: rgba(255, 0, 0, 0.25); box-shadow: 0 0 10px #ff0000; }
+
+    /* --- Top status bar --- */
+    #statusbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      z-index: 100;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      opacity: 0.9;
+    }
+
+    /* --- Status panels --- */
+    .status-panel {
+      font-family: monospace;
+      background: rgba(0,255,0,0.15);
+      color:#00ff00;
+      box-shadow:0 0 8px #00ff00;
+      padding:10px;
+      border-radius:12px;
+      width:90%;
+      max-width:800px;
+      overflow-x:auto;
+      margin-top:1rem;
+      white-space:pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="background--custom"></div>
+
+  <!-- Status Bar -->
+  <div id="statusbar">
+    <span id="time">--:--:--</span>
+    <span id="temp">🌡️ -- °C</span>
+    <span id="load">⚙️ Load: --</span>
+  </div>
+
+  <h1>🛰️ MorePi Container Dashboard</h1>
+  <div class="grid" id="links"></div>
+
+  <!-- SABnzbd / Radarr / Sonarr Panels -->
+  <pre id="sab-status" class="status-panel">Loading SABnzbd status...</pre>
+  <pre id="radarr-status" class="status-panel">Loading Radarr queue...</pre>
+  <pre id="sonarr-status" class="status-panel">Loading Sonarr queue...</pre>
+
+  <footer>
+    Hosted on MorePi · <span id="year"></span>
+  </footer>
+
+  <script>
+    const services = [
+      { name: "Home Assistant", port: 8123, id: "homeassistant" },
+      { name: "SABnzbd", port: 8080, id: "sabnzbd" },
+      { name: "Sonarr", port: 8989, id: "sonarr" },
+      { name: "Radarr", port: 7878, id: "radarr" },
+      { name: "Readarr", port: 8787, id: "readarr" },
+      { name: "Whisparr", port: 6969, id: "whisparr" },
+      { name: "Prowlarr", port: 9696, id: "prowlarr" },
+      { name: "Grocy", port: 9283, id: "grocy" },
+      { name: "BarcodeBuddy", port: 9080, id: "barcodebuddy" },
+      { name: "MorePi MCP Agent", port: 8181, id: "MorePi MCP Agent" },
+      { name: "Portainer", port: 9000, id: "portainer" },
+      { name: "Watchtower", port: 9001, id: "watchtower" }
+    ];
+
+    const grid = document.getElementById("links");
+    const host = window.location.hostname;
+
+    // Create service buttons
+    services.forEach(svc => {
+      const link = document.createElement("a");
+      link.href = `http://${host}:${svc.port}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      const div = document.createElement("div");
+      div.id = svc.id;
+      div.className = "button stopped";
+      div.textContent = svc.name;
+      link.appendChild(div);
+      grid.appendChild(link);
+    });
+
+    // Fetch container states
+    async function updateStatuses() {
+      try {
+        const res = await fetch("http://192.168.1.55:9999/containers/json");
+        const containers = await res.json();
+        const runningNames = containers.map(c => c.Names.map(n => n.replace(/^\/+/, ""))).flat();
+        services.forEach(svc => {
+          const el = document.getElementById(svc.id);
+          if (!el) return;
+          const isRunning = runningNames.some(n => n.toLowerCase().includes(svc.id.toLowerCase()));
+          el.classList.toggle("running", isRunning);
+          el.classList.toggle("stopped", !isRunning);
+        });
+      } catch (err) {
+        console.error("Docker proxy unreachable or CORS issue:", err);
+      }
+    }
+
+    // System status bar
+    async function updateSystemStatus() {
+      try {
+        const temp = await (await fetch("/shared/sysinfo/temp")).text();
+        const load = await (await fetch("/shared/sysinfo/load")).text();
+        document.getElementById("temp").textContent = `🌡️ ${temp.trim()} °C`;
+        document.getElementById("load").textContent = `⚙️ Load: ${load.trim()}`;
+      } catch (e) {
+        document.getElementById("temp").textContent = "🌡️ -- °C";
+        document.getElementById("load").textContent = "⚙️ Load: --";
+      }
+    }
+
+    function updateTime() {
+      document.getElementById("time").textContent = new Date().toLocaleTimeString();
+    }
+
+    // === SABnzbd Status ===
+    async function updateSAB() {
+      const SAB_URL = "http://192.168.1.55:8080/sabnzbd/api?apikey=cd9a497b0818438e8b063c898c129f36&output=json&mode=queue";
+      try {
+        const res = await fetch(SAB_URL);
+        const data = await res.json();
+        const q = data.queue;
+        const downloading = q.slots.filter(s => s.status === "Downloading").length;
+        const html = `
+🧩 SABnzbd Status
+==============================
+Active downloads : ${downloading}/${q.noofslots_total}
+Speed             : ${q.speed}
+Remaining         : ${(q.mbleft/1024).toFixed(2)} GB
+Free Disk Space   : ${q.diskspace1} GB
+Queue Paused      : ${q.paused ? "✅ Yes" : "❌ No"}
+`;
+        document.getElementById("sab-status").innerText = html;
+      } catch {
+        document.getElementById("sab-status").innerText = "⚠️ SABnzbd unreachable or API error.";
+      }
+    }
+
+    // === Radarr Queue ===
+    async function updateRadarr() {
+      const RADARR_URL = "http://192.168.1.55:7878/api/v3/queue?apikey=91ac4985664f45d0ba4d060d85678c72";
+      try {
+        const res = await fetch(RADARR_URL);
+        const data = await res.json();
+        const count = data.length;
+        const titles = data.slice(0, 5).map(i => `• ${i.title}`).join("\n");
+        const html = `
+🎬 Radarr Queue
+==============================
+Items in queue : ${count}
+${titles || "No active downloads"}
+`;
+        document.getElementById("radarr-status").innerText = html;
+      } catch {
+        document.getElementById("radarr-status").innerText = "⚠️ Radarr unreachable or API error.";
+      }
+    }
+
+    // === Sonarr Queue ===
+    async function updateSonarr() {
+      const SONARR_URL = "http://192.168.1.55:8989/api/v3/queue?apikey=18f4a985226b4076a250e26612074c63";
+      try {
+        const res = await fetch(SONARR_URL);
+        const data = await res.json();
+        const count = data.length;
+        const titles = data.slice(0, 5).map(i => `• ${i.title}`).join("\n");
+        const html = `
+📺 Sonarr Queue
+==============================
+Items in queue : ${count}
+${titles || "No active downloads"}
+`;
+        document.getElementById("sonarr-status").innerText = html;
+      } catch {
+        document.getElementById("sonarr-status").innerText = "⚠️ Sonarr unreachable or API error.";
+      }
+    }
+
+    // Intervals
+    updateStatuses();
+    setInterval(updateStatuses, 4000);
+    updateTime();
+    setInterval(updateTime, 1000);
+    updateSystemStatus();
+    setInterval(updateSystemStatus, 6000);
+    updateSAB();
+    setInterval(updateSAB, 10000);
+    updateRadarr();
+    setInterval(updateRadarr, 10000);
+    updateSonarr();
+    setInterval(updateSonarr, 10000);
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛰️ MorePi Container Dashboard</title>
+
+  <style>
+    .background--custom {
+      background: linear-gradient(90deg, #A512D3, #202A50, #A56E97);
+      background-size: 300% 300%;
+      animation: gradient 8s alternate infinite;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      z-index: -1;
+    }
+    @keyframes gradient {
+      0% { background-position: 0%; }
+      100% { background-position: 100%; }
+    }
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 2rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      backdrop-filter: blur(3px);
+    }
+    h1 { color: #ffffff; margin-bottom: 1.5rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
+    }
+    a { text-decoration: none; }
+    .button {
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 1.1rem;
+      color: #fff;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .running { background: rgba(0, 255, 0, 0.25); box-shadow: 0 0 10px #00ff00; }
+    .stopped { background: rgba(255, 0, 0, 0.25); box-shadow: 0 0 10px #ff0000; }
+    footer {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="background--custom"></div>
+  <h1>🛰️ MorePi Container Dashboard</h1>
+  <div class="grid" id="links"></div>
+
+  <script>
+    const services = [
+      { name: "Home Assistant", port: 8123, id: "homeassistant" },
+      { name: "SABnzbd", port: 8080, id: "sabnzbd" },
+      { name: "Sonarr", port: 8989, id: "sonarr" },
+      { name: "Radarr", port: 7878, id: "radarr" },
+      { name: "Readarr", port: 8787, id: "readarr" },
+      { name: "Whisparr", port: 6969, id: "whisparr" },
+      { name: "Prowlarr", port: 9696, id: "prowlarr" },
+      { name: "Grocy", port: 9283, id: "grocy" },
+      { name: "BarcodeBuddy", port: 9080, id: "barcodebuddy" },
+      { name: "Portainer", port: 9000, id: "portainer" },
+      { name: "Watchtower", port: 9001, id: "watchtower" }
+    ];
+
+    const grid = document.getElementById("links");
+    const host = window.location.hostname;
+
+    services.forEach(svc => {
+      const link = document.createElement("a");
+      link.href = `http://${host}:${svc.port}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+
+      const div = document.createElement("div");
+      div.id = svc.id;
+      div.className = "button stopped";
+      div.textContent = svc.name;
+      link.appendChild(div);
+      grid.appendChild(link);
+    });
+
+    async function updateStatuses() {
+      try {
+       const res = await fetch("http://192.168.1.55:9999/containers/json");
+
+        const containers = await res.json();
+
+        const runningNames = containers.flatMap(c =>
+          c.Names.map(n => n.replace(/^\/+/, "").toLowerCase())
+        );
+
+        services.forEach(svc => {
+          const el = document.getElementById(svc.id);
+          if (!el) return;
+
+          const isRunning = runningNames.some(n =>
+            n === svc.id.toLowerCase() ||
+            n.endsWith(`_${svc.id}_1`) ||
+            n.includes(svc.id.toLowerCase())
+          );
+
+          el.classList.toggle("running", isRunning);
+          el.classList.toggle("stopped", !isRunning);
+        });
+      } catch (err) {
+        console.error("Docker proxy unreachable or CORS issue:", err);
+      }
+    }
+
+    updateStatuses();
+    setInterval(updateStatuses, 4000);
+  </script>
+
+  <footer>
+    Hosted by NGINX on MorePi · <span id="year"></span>
+  </footer>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
+
