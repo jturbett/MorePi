@@ -352,63 +352,6 @@
     });
   </script>
 <!-- UniFi Protect Events Card -->
-<div class="card" id="unifi-card">
-  <h3>🎥 UniFi Protect Events</h3>
-  <div id="unifi-events" class="scrollable"></div>
-</div>
-
-<style>
-#unifi-card {
-  transition: box-shadow 0.3s;
-}
-#unifi-card.flash {
-  box-shadow: 0 0 25px 5px #ff0055;
-}
-#unifi-events {
-  max-height: 200px;
-  overflow-y: auto;
-  font-family: monospace;
-}
-.event-item {
-  margin: 4px 0;
-  opacity: 0;
-  transform: translateY(10px);
-  animation: slideUp 0.5s forwards;
-}
-@keyframes slideUp {
-  to { opacity: 1; transform: translateY(0); }
-}
-</style>
-
-<script>
-async function loadUniFiEvents() {
-  try {
-    const res = await fetch("unifi_events.json?_=" + Date.now());
-    const events = await res.json();
-    const container = document.getElementById("unifi-events");
-    container.innerHTML = "";
-    for (let ev of events) {
-      const t = new Date(ev.time).toLocaleTimeString();
-      const color = ev.type === "motion" ? "red" : ev.type === "connect" ? "green" : "gray";
-      const row = `<div class='event-item' style='color:${color}'>
-        ${t} – ${ev.type.toUpperCase()} (${ev.camera})
-      </div>`;
-      container.innerHTML += row;
-    }
-    // Flash card for motion
-    if (events.some(e => e.type === "motion")) {
-      const card = document.getElementById("unifi-card");
-      card.classList.add("flash");
-      setTimeout(() => card.classList.remove("flash"), 800);
-    }
-  } catch (err) {
-    console.error("Error loading UniFi events:", err);
-  }
-}
-setInterval(loadUniFiEvents, 8000);
-loadUniFiEvents();
-</script>
-<!-- UniFi Protect Events Card -->
 <div class="button running" id="unifi-card" style="max-width:700px; margin-top:2rem;">
   <h3 style="margin-top:0;">🎥 UniFi Protect Events</h3>
   <div id="unifi-events" class="scrollable"></div>
@@ -444,7 +387,7 @@ loadUniFiEvents();
 <script>
 async function loadUniFiEvents() {
   try {
-    const res = await fetch("/shared/unifi_events.json?_=" + Date.now());
+    const res = await fetch("unifi_events.json?_=" + Date.now());
     if (!res.ok) throw new Error("No JSON found");
     const events = await res.json();
     const container = document.getElementById("unifi-events");
