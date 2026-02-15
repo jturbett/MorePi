@@ -167,7 +167,7 @@
     </div>
   </div>
 
-  <footer>Hosted on MorePi · <span id="year"></span></footer>
+  <footer>Hosted on MorePi · <span id="year"></span> · <span id="code-version">Code: loading...</span></footer>
 
   <!-- ChatGPT Section -->
   <section id="chatgpt-box">
@@ -271,6 +271,24 @@
       document.getElementById("time").textContent = new Date().toLocaleTimeString();
     }
 
+    async function updateCodeVersion() {
+      const versionEl = document.getElementById("code-version");
+      if (!versionEl) return;
+      try {
+        const res = await fetch("/version.json?_=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("version.json not found");
+        const meta = await res.json();
+        const parts = [];
+        if (meta.version) parts.push(meta.version);
+        if (meta.commit) parts.push(meta.commit);
+        if (meta.built_at) parts.push(meta.built_at);
+        versionEl.textContent = `Code: ${parts.join(" · ") || "unknown"}`;
+      } catch (err) {
+        versionEl.textContent = "Code: unknown";
+        console.warn("Unable to load dashboard version:", err);
+      }
+    }
+
     async function checkTurbattoStatus() {
       const icon = document.getElementById("turbattoIcon");
       try {
@@ -289,6 +307,7 @@
     updateSystemStatus(); setInterval(updateSystemStatus, 6000);
     checkTurbattoStatus(); setInterval(checkTurbattoStatus, 15000);
     document.getElementById("year").textContent = new Date().getFullYear();
+    updateCodeVersion();
 
     /* ChatGPT logic */
     const form = document.getElementById('chat-form');
