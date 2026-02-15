@@ -77,17 +77,32 @@ services:
       - /if:/shared
     restart: unless-stopped
 
-  homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
-    container_name: homeassistant
-    environment:
-      - TZ=${TZ}
-    privileged: true
+  # homeassistant:
+  #   image: ghcr.io/home-assistant/home-assistant:stable
+  #   container_name: homeassistant
+  #   environment:
+  #     - TZ=${TZ}
+  #   privileged: true
+  #   ports:
+  #     - "${HOMEASSISTANT_PORT}:8123"
+  #   volumes:
+  #     - ./services/homeassistant:/config
+  #     - /if:/shared
+  #   restart: unless-stopped
+
+  mcp-server:
+    build: ../mcp-server
+    image: local-mcp:latest
+    container_name: mcp-server
     ports:
-      - "${HOMEASSISTANT_PORT}:8123"
+      - "${MCP_HTTP_PORT}:8000"
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+      MCP_DATA_PATH: /app/data/records.csv
     volumes:
-      - ./services/homeassistant:/config
-      - /if:/shared
+      - ../mcp-server/data:/app/data:ro
     restart: unless-stopped
 
   nginx:
@@ -98,9 +113,23 @@ services:
       - "80:80"
     volumes:
       - /home/joe/compose-stack/services/nginx/conf.d:/etc/nginx/conf.d
-      - /home/joe/compose-stack/services/nginx:/usr/share/nginx/html
+      - /home/joe/compose-stack/services/nginx/html:/usr/share/nginx/html
       - /if:/usr/share/nginx/html/shared
 
+  unifi-collector:
+    image: python:3.11
+    container_name: unifi-collector
+    restart: always
+    volumes:
+      - /home/joe/compose-stack/services/nginx/html:/var/www/html
+      - /home/joe/compose-stack/services/unifi:/scripts
+    environment:
+      - NVR_URL=${NVR_URL}
+      - API_TOKEN=${API_TOKEN}
+    working_dir: /scripts
+    command: >
+      /bin/sh -c "pip install requests urllib3 websocket-client;
+                  python /scripts/unifi_events.py"
 
   portainer:
     image: portainer/portainer-ce:latest
@@ -120,21 +149,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --schedule "0 0 3 * * *" --cleanup
-   
-  readarr:
-    image: ghcr.io/hotio/readarr:nightly 
-    container_name: readarr
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ}
-    ports:
-      - "${READARR_PORT}:8787"
-    volumes:
-      - ./services/readarr:/config
-      - /if:/shared
-    restart: unless-stopped
- 
+
   dockerproxy:
     image: tecnativa/docker-socket-proxy
     container_name: dockerproxy
@@ -164,14 +179,12 @@ services:
       - ./services/dockerapi/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
 
-  mcp-agent:
-    build: ./services/mcp-agent
-    container_name: mcp-agent
-    restart: unless-stopped
-    ports:
-      - "8181:8081"
-    networks:
-      - default
+  # mcp-agent:
+  #   build: ./services/mcp-agent
+  #   container_name: mcp-agent
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8181:8081"
 
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -187,7 +200,125 @@ services:
       - /if:/shared
     restart: unless-stopped
 
+  chatgpt-web:
+    build: ./services/chatgpt-web
+    container_name: chatgpt-web
+    environment:
+      - TZ=${TZ}
+      - OPENAI_MODEL=gpt-5
+    volumes:
+      - ./services/chatgpt-web/key.txt:/app/key.txt:ro
+      - ./services/chatgpt-web/logs:/app/logs
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  farmbot:
+    build: ./services/farmbot
+    image: farmbot-siri-local:latest
+    container_name: farmbot
+    ports:
+      - "7777:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=INFO
+      - DISCORD_RESTART_NOTIFY=true
+      - DISCORD_WEBHOOK_URL_FILE=/run/secrets/discord.txt
+      - STATUS_URL=http://192.168.1.55:7777/health
+      - FARMBOT_TOKEN_JSON_FILE=/run/secrets/farmbot_authorization_token.json
+      - LIGHTS_PIN=7
+      - IRRIGATION_PIN=10
+      - WATER_PIN=8
+      - VACUUM_PIN=9
+      - RPI_PIN=12
+      - ROTARY_FWD_PIN=2
+      - ROTARY_REV_PIN=3
+      - UNIFI_MOTION_TRIGGER_URL=http://127.0.0.1:8000/trigger/demo_move_home?x=600&y=400&z=0
+      - UNIFI_MOTION_TRIGGER_TIMEOUT=180
+      - UNIFI_MOTION_REQUIRE_CAMERA=false
+      - UNIFI_MOTION_REQUIRE_MOTION=false
+      - DISCORD_UNIFI_WEBHOOK_URL_FILE=/run/secrets/discord_unifi.txt
+    volumes:
+      - ./services/farmbot/secrets:/run/secrets:ro
+    restart: unless-stopped
+
+
+  protect-to-graylog:
+    image: python:3.12-slim
+    container_name: protect-graylog-forwarder
+    restart: unless-stopped
+    environment:
+      PROTECT_URL: "https://192.168.1.59"
+      PROTECT_TOKEN: "REDACTED"
+      GRAYLOG_HOST: "192.168.1.50"
+      GRAYLOG_PORT: "12201"
+    volumes:
+      - ./collector:/app
+    working_dir: /app
+    command: python collector.py
+
+
+  # ---------------------------
+  # GRAYLOG STACK (ARM64)
+  # ---------------------------
+
+  mongo:
+    image: arm64v8/mongo:7.0-jammy
+    container_name: graylog-mongo
+    restart: unless-stopped
+    volumes:
+      - graylog_mongo:/data/db
+
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: graylog-opensearch
+    restart: unless-stopped
+    environment:
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms768m -Xmx768m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - graylog_os:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+
+  graylog:
+    image: graylog/graylog:6.2
+    container_name: graylog
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - opensearch
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+      # Set this to your MorePi IP or hostname:
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://${MOREPI_HOSTNAME_OR_IP}:9001/
+      - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
+      - GRAYLOG_OPENSEARCH_HOSTS=http://opensearch:9200
+    ports:
+      - "9001:9000/tcp"
+      - "12201:12201/udp"     # GELF UDP
+      # Keep UDM Pro sending to 514; map it into Graylog input port 1514
+      - "514:1514/udp"
+      - "514:1514/tcp"
+      - "5140:5140/udp"
+    volumes:
+      - graylog_journal:/usr/share/graylog/data/journal
+      - ./services/graylog/graylog.conf:/usr/share/graylog/data/config/graylog.conf:ro
+
+
 volumes:
   portainer_data:
-
-
+  graylog_mongo:
+  graylog_os:
+  graylog_journal:

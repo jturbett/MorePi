@@ -1,7 +1,3 @@
-# Ignore Grocy certs
-services/grocy/keys/*.key
-services/grocy/keys/*.crt
-
 # === General ===
 __pycache__/
 *.pyc
@@ -10,6 +6,12 @@ __pycache__/
 *.swp
 *.pid
 *.sock
+.pytest_cache/
+
+# === Environment ===
+.env
+.env.*
+docker-compose.override.yml
 
 # === Logs ===
 **/log/
@@ -24,20 +26,58 @@ __pycache__/
 *.pem
 *.p12
 *.json.key
+secrets/*.txt
+secrets/*.json
+services/chatgpt-web/key.txt
+services/chatgpt-web/logs/
+services/farmbot/secrets/*.txt
+services/farmbot/secrets/*.json
+services/farmbot/secrets/unifi_key
+services/farmbot/.git/
 
-# === Home Assistant sensitive data ===
+# === Home Assistant sensitive/runtime data ===
 services/homeassistant/.storage/
 services/homeassistant/home-assistant_v2.db*
 services/homeassistant/tts/
 services/homeassistant/.cloud/
+services/homeassistant/backups/
+services/homeassistant/home-assistant.log*
+services/homeassistant/.ha_run.lock
+services/homeassistant/.HA_VERSION
 
-# === Docker generated files ===
-.env
-*.db
-*.sqlite
-docker-compose.override.yml
+# === Service runtime churn ===
+services/**/Backups/
+services/**/asp/
+services/**/Definitions/
+services/**/Sentry/
+services/**/MediaCover/
+services/**/*.db
+services/**/*.db-*
+services/**/*.sqlite
+services/**/*.sqlite*
+services/**/*.log
+services/**/*.log.*
+services/sabnzbd/admin/future/
 
-# === OS junk ===
+# === Dashboard runtime files ===
+services/nginx/html/unifi_debug.log
+services/nginx/html/unifi_events.json
+services/nginx/html/shared/
+
+# === Optional/local-only service trees ===
+services/openai/
+services/wazuh/
+
+# === Local temporary files ===
 .DS_Store
 Thumbs.db
+/tok
+/1
+/1126.yaml
+/ad.sh
+/collector.py
+/graylog.conf
 
+services/nginx/chat.html
+services/nginx/v2index.html
+/udm_security_dashboard.contentpack.json

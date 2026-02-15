@@ -1,0 +1,8 @@
+secrets/*.txt
+.env
+.env.*
+__pycache__/
+.pytest_cache/
+secrets/*.json
+
+secrets/unifi_key

@@ -1,0 +1,13 @@
+services:
+  farmbot-siri:
+    build: .
+    image: farmbot-siri-local:latest
+    ports:
+      - "7777:8000"
+    environment:
+      PORT: 8000
+      LOG_LEVEL: INFO
+      # Optional integrations
+      # TEAMS_WEBHOOK_URL: https://...
+      # UNIFI_PROTECT_HOST: 192.168.1.59
+      # UNIFI_MOTION_TRIGGER_URL: http://192.168.1.55:7777/trigger/demo_move_home?x=600&y=400&z=0

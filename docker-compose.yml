@@ -1,0 +1,27 @@
+services:
+  farmbot-siri:
+    build: .
+    image: farmbot-siri-local:latest
+    ports:
+      - "7777:8000"
+    environment:
+      PORT: 8000
+      LOG_LEVEL: INFO
+      # Optional direct env var fallback:
+      # DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/...
+      # Preferred: file-based secret mount
+      DISCORD_WEBHOOK_URL_FILE: /run/secrets/discord_webhook
+      # Farmbot auth token/secret (for your future MQTT/API integration):
+      FARMBOT_TOKEN_JSON_FILE: /run/secrets/farmbot_authorization_token
+      # Discord restart notification settings:
+      STATUS_URL: http://localhost:7777/health
+      DISCORD_RESTART_NOTIFY: "true"
+    secrets:
+      - discord_webhook
+      - farmbot_authorization_token
+
+secrets:
+  discord_webhook:
+    file: ./secrets/discord.txt
+  farmbot_authorization_token:
+    file: ./secrets/farmbot_authorization_token.json
